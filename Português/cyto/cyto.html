@@ -1,0 +1,970 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NetSentinel</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background-color: #121212;
+            color: #ececec;
+            padding: 20px;
+            overflow: hidden;
+        }
+        
+        header {
+            text-align: center;
+            margin-bottom: 20px;
+            padding: 15px;
+            background-color: #1e1e1e;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.4);
+        }
+        
+        h1 {
+            font-size: 28px;
+            margin-bottom: 10px;
+            color: #6aebf0;
+        }
+        
+        .description {
+            font-size: 16px;
+            max-width: 800px;
+            margin: 0 auto 20px auto;
+            line-height: 1.5;
+            color: #d3d3d3;
+        }
+        
+        .view-selector {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .view-btn {
+            padding: 12px 20px;
+            background-color: #2c2c2c;
+            color: #e2e2e2;
+            border: 2px solid #424242;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s;
+        }
+        
+        .view-btn.active {
+            background-color: #6aebf0;
+            color: #121212;
+            border-color: #6aebf0;
+        }
+        
+        .view-btn:hover {
+            background-color: #424242;
+        }
+        
+        .container {
+            display: flex;
+            height: calc(100vh - 250px);
+            gap: 20px;
+        }
+        
+        #cy {
+            width: 75%;
+            height: 100%;
+            background-color: #1e1e1e;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+        }
+        
+        .sidebar {
+            width: 25%;
+            background-color: #1e1e1e;
+            padding: 15px;
+            border-radius: 8px;
+            overflow-y: auto;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+        }
+        
+        .sidebar h2 {
+            color: #6aebf0;
+            margin-bottom: 15px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #424242;
+        }
+        
+        .stats {
+            margin-bottom: 20px;
+        }
+        
+        .stat-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            padding: 8px;
+            background-color: #2c2c2c;
+            border-radius: 4px;
+        }
+        
+        .legend {
+            margin-top: 20px;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        
+        .legend-color {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            margin-right: 10px;
+            border: 2px solid #424242;
+        }
+        
+        .controls {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        
+        button {
+            padding: 10px 15px;
+            background-color: #424242;
+            color: #e0e0e0;
+            border: 1px solid #6aebf0;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s;
+        }
+        
+        button:hover {
+            background-color: #6aebf0;
+            color: #121212;
+        }
+        
+        .node-info {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #2c2c2c;
+            border-radius: 8px;
+            display: none;
+            border-left: 4px solid #6aebf0;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .node-info h3 {
+            color: #6aebf0;
+            margin-bottom: 15px;
+            font-size: 18px;
+            border-bottom: 1px solid #424242;
+            padding-bottom: 8px;
+        }
+
+        .node-info p {
+            margin-bottom: 12px;
+            color: #d3d3d3;
+            line-height: 1.4;
+        }
+
+        .node-info strong {
+            color: #6aebf0;
+            font-weight: 600;
+        }
+
+        .node-info ul {
+            margin-left: 20px;
+            margin-bottom: 15px;
+            color: #b0b0b0;
+        }
+
+        .node-info li {
+            margin-bottom: 5px;
+            font-size: 13px;
+        }
+
+        .node-info pre {
+            background-color: #1e1e1e;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+            font-size: 11px;
+            color: #6aebf0;
+            margin-top: 5px;
+        }
+    
+        .cost-badge {
+            font-size: 10px;
+            padding: 2px 6px;
+            border-radius: 10px;
+            background-color: #424242;
+            margin-left: 5px;
+        }
+
+        .loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #6aebf0;
+            font-size: 18px;
+        }
+
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.23.0/cytoscape.min.js"></script>
+</head>
+<body>
+    <header>
+        <h1>NetSentinel - Topografia da Sub-Rede</h1>
+        
+        <div class="view-selector">
+            <button class="view-btn active" data-view="overview">Visão Geral</button>
+            <button class="view-btn" data-view="bestpath">Melhor Rota</button>
+            <button class="view-btn" data-view="direct">Conexões Diretas</button>
+        </div>
+        <div class="controls">
+            <button id="reset-btn">Redefinir Visualização</button>
+            <button id="layout-btn">Mudar Layout</button>
+            <button id="export-btn">Exportar Imagem</button>
+        </div>
+        
+    </header>
+    
+    <div class="container">
+        <div id="cy"></div>
+        
+        <div class="sidebar">
+            <div class="stats">
+                <h2>Estatísticas da Rede</h2>
+                <div class="stat-item">
+                    <span>Dispositivos Ativos:</span>
+                    <span id="active-devices">0</span>
+                </div>
+                <div class="stat-item">
+                    <span>Portas Abertas:</span>
+                    <span id="open-ports">0</span>
+                </div>
+                <div class="stat-item">
+                    <span>Descobertas HTTP:</span>
+                    <span id="http-findings">0</span>
+                </div>
+                <div class="stat-item">
+                    <span>Rotas:</span>
+                    <span id="routes-count">0</span>
+                </div>
+                <div class="stat-item">
+                    <span>Visualização:</span>
+                    <span id="current-view">Visão Geral</span>
+                </div>
+            </div>
+            
+            <div class="legend">
+                <h2>Legenda</h2>
+                <div class="legend-item">
+                    <div class="legend-color" style="background-color: #4f46e5;"></div>
+                    <span>Gateway/Router</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background-color: #4dfff6;"></div>
+                    <span>Host Ativo</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background-color: #616161;"></div>
+                    <span>Host Inativo</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background-color: #ff0000;"></div>
+                    <span>Host Local</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background-color: #62fc1b;"></div>
+                    <span>Porta Web</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background-color: #c235df;"></div>
+                    <span>Diretórios</span>
+                </div>
+                <!--<div class="legend-item">
+                    <div class="legend-color" style="background-color: #4fc3f7;"></div>
+                    <span>Rota Direta</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background-color: #ff9800;"></div>
+                    <span>Best Path A*</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: linear-gradient(to right, #4fc3f7, #db2727);"></div>
+                    <span>Custo</span>
+                </div>-->
+            </div>
+            
+            <div class="node-info" id="node-info">
+                <h3 id="node-title">Detalhes do Nó</h3>
+                <div id="node-details"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Variáveis globais
+            let currentLayout = 'breadthfirst';
+            let currentView = 'overview';
+            let cy;
+            let graphData;
+            let originalPositions = new Map(); // Para armazenar posições originais
+            
+            // Elementos por camada
+            const elementsByLayer = {
+                overview: { nodes: [], edges: [] },
+                bestpath: { nodes: [], edges: [] },
+                direct: { nodes: [], edges: [] }
+            };
+
+            // Carregar dados do JSON
+            fetch('cyto-graph.json')
+                .then(response => response.json())
+                .then(data => {
+                    graphData = data;
+                    
+                    // Preparar elementos para cada camada
+                    elementsByLayer.overview = prepareElements(data.overview);
+                    elementsByLayer.bestpath = prepareElements(data.bestpath);
+                    elementsByLayer.direct = prepareElements(data.direct);
+                    
+                    initCy();
+                    updateStats(data);
+                    applyView(currentView);
+                })
+                .catch(error => {
+                    console.error('Erro ao carregar o JSON:', error);
+                    alert('Erro ao carregar os dados. Verifique se o arquivo cyto-graph.json está acessível.');
+                });
+
+            // Inicializar o Cytoscape
+            function initCy() {
+                cy = cytoscape({
+                    container: document.getElementById('cy'),
+                    elements: [],
+                    zoom: 1,
+                    zoomingEnabled: true,
+                    userZoomingEnabled: true,
+                    minZoom: 0.1,
+                    maxZoom: 5,
+                    wheelSensitivity: 0.2,
+                    pixelRatio: 2,
+                    
+                    style: [
+                        {
+                            selector: 'node',
+                            style: {
+                                'label': 'data(label)',
+                                'text-valign': 'center',
+                                'text-halign': 'center',
+                                'font-size': '9px',
+                                'color': '#e0e0e0',
+                                'text-background-color': '#000',
+                                'text-background-opacity': 0.7,
+                                'text-background-padding': '2px',
+                                'text-background-shape': 'roundrectangle',
+                                'text-max-width': '120px',
+                                'text-wrap': 'wrap'
+                            }
+                        },
+                        // Estilos para tipos de nós
+                        {
+                            selector: 'node[type = "gateway"]',
+                            style: {
+                                'background-color': '#4f46e5',
+                                'width': 35,
+                                'height': 35,
+                                'shape': 'round-octagon'
+                            }
+                        },
+                        {
+                            selector: 'node[type = "local"]',
+                            style: {
+                                'background-color': '#ff0000',
+                                'width': 35,
+                                'height': 35,
+                                'shape': 'vee'
+                            }
+                        },
+                        {
+                            selector: 'node[type = "host"]',
+                            style: {
+                                'background-color': '#4dfff6',
+                                'width': 30,
+                                'height': 30,
+                                'shape': 'ellipse'
+                            }
+                        },
+                        {
+                            selector: 'node[type = "host-inactive"]',
+                            style: {
+                                'background-color': '#616161',
+                                'width': 25,
+                                'height': 25,
+                                'shape': 'ellipse'
+                            }
+                        },
+                        {
+                            selector: 'node[type = "group"]',
+                            style: {
+                                'background-color': '#a577f5',
+                                'width': 25,
+                                'height': 25,
+                                'shape': 'round-diamond'
+                            }
+                        },
+                        {
+                            selector: 'node[type = "port"]',
+                            style: {
+                                'background-color': '#62fc1b',
+                                'width': 15,
+                                'height': 15,
+                                'shape': 'round-rectangle'
+                            }
+                        },
+                        {
+                            selector: 'node[type = "directory"]',
+                            style: {
+                                'background-color': '#c235df',
+                                'width': 13,
+                                'height': 13,
+                                'shape': 'round-triangle'
+                            }
+                        },
+                        // Estilos para arestas
+                        {
+                            selector: 'edge',
+                            style: {
+                                'width': 2,
+                                'line-color': 'data(color)',
+                                'target-arrow-color': 'data(color)',
+                                'target-arrow-shape': 'triangle',
+                                'curve-style': 'bezier',
+                                'arrow-scale': 1.2
+                            }
+                        },
+                    ]
+                });
+                
+                // Eventos
+                cy.on('tap', 'node', function(evt) {
+                    const node = evt.target;
+                    showNodeInfo(node);
+                });
+                
+                cy.on('tap', function(evt) {
+                    if (evt.target === cy) {
+                        hideNodeInfo();
+                    }
+                });
+                
+                cy.on('layoutstop', function() {
+                    // Salvar posições originais após o layout
+                    cy.nodes().forEach(node => {
+                        originalPositions.set(node.id(), {
+                            x: node.position('x'),
+                            y: node.position('y')
+                        });
+                    });
+                    
+                    cy.fit(cy.elements(), 50);
+                });
+            }
+            
+            // Preparar elementos
+            function prepareElements(layerData) {
+                const elements = [];
+                
+                layerData.nodes.forEach(node => {
+                    elements.push({ data: node.data });
+                });
+                
+                layerData.edges.forEach(edge => {
+                    elements.push({ data: edge.data });
+                });
+                
+                return elements;
+            }
+            
+            // Aplicar visualização selecionada
+            function applyView(view) {
+                currentView = view;
+                const viewNames = {
+                    'overview': 'Visão Geral',
+                    'bestpath': 'Melhor Path', 
+                    'direct': 'Conexões Diretas'
+                };
+                
+                document.getElementById('current-view').textContent = viewNames[view];
+                
+                // Ativar botão correspondente
+                document.querySelectorAll('.view-btn').forEach(btn => {
+                    btn.classList.remove('active');
+                });
+                document.querySelector(`[data-view="${view}"]`).classList.add('active');
+                
+                // Determinar layout apropriado
+                let layoutConfig;
+                switch(view) {
+                    case 'overview':
+                        currentLayout = 'breadthfirst';
+                        layoutConfig = {
+                            name: 'breadthfirst',
+                            fit: true,
+                            padding: 50,
+                            animate: true,
+                            animationDuration: 500,
+                            directed: true,
+                            roots: 'node[type = "local"]', // Host local como raiz
+                            spacingFactor: 0.8
+                        };
+                        break;
+                        
+                    case 'bestpath':
+                        currentLayout = 'breadthfirst';
+                        layoutConfig = {
+                            name: 'breadthfirst',
+                            directed: true,
+                            roots: '#A',
+                            direction: 'LR',
+                            spacingFactor: 0.7,
+                            fit: true,
+                            padding: 50,
+                            animate: true,
+                            animationDuration: 500,
+                            transform: function (node, pos) {
+                                // Aplica um pequeno "jitter" no Y
+                                return {
+                                x: pos.x,
+                                y: pos.y + (Math.random() * 80 - 40) // desloca entre -15 e +15 px
+                                };
+                            }
+                        };
+                        break;
+
+                    case 'direct':
+                        currentLayout = 'circle';
+                        layoutConfig = {
+                            name: 'circle',
+                            directed: true,
+                            //direction: 'LR',  // esquerda para direita
+                            spacingFactor: 0.7,
+                            fit: true,
+                            padding: 50,
+                            animate: true,
+                            animationDuration: 500,
+                            roots: 'node[type = "local"]',
+                            /*transform: function (node, pos) {
+                                // Aplica um pequeno "jitter" no Y
+                                return {
+                                x: pos.x,
+                                y: pos.y + (Math.random() * 250 - 125) // desloca entre -15 e +15 px
+                                };
+                            }*/
+                        };
+                        break;
+                }
+                
+                // Limpar e adicionar elementos da camada selecionada
+                cy.elements().remove();
+                cy.add(elementsByLayer[view]);
+                
+                // Aplicar layout
+                cy.layout(layoutConfig).run();
+                
+                // Ajuste especial para bestpath - layout mais organizado
+                if (view === 'bestpath') {
+                    setTimeout(() => {
+                        organizeBestPathLayout();
+                    }, 100);
+                }
+            }
+            
+            // Organizar layout do bestpath em linha reta
+            function organizeBestPathLayout() {
+                const nodes = cy.nodes();
+                if (nodes.length === 0) return;
+                
+                // Ordenar nós pela sequência do path
+                const sortedNodes = nodes.sort((a, b) => {
+                    return a.id().localeCompare(b.id());
+                });
+                
+                // Posicionar em linha horizontal
+                const centerY = cy.height() / 2;
+                const spacing = cy.width() / (sortedNodes.length + 1);
+                
+                sortedNodes.forEach((node, index) => {
+                    node.position({
+                        x: spacing * (index + 1),
+                        y: centerY
+                    });
+                });
+                
+                cy.fit(nodes, 50);
+            }
+            
+            // Atualizar estatísticas
+            function updateStats(data) {
+                // Contar dispositivos ativos (hosts + gateway + local)
+                const activeDevices = data.overview.nodes.filter(node => 
+                    node.data.type === 'host' || node.data.type === 'local' || node.data.type === 'gateway'
+                ).length;
+                
+                // Contar portas abertas
+                const openPorts = data.direct.nodes.filter(node => 
+                    node.data.type === 'port'
+                ).length;
+                
+                // Contar descobertas HTTP
+                const httpFindings = data.direct.nodes.filter(node => 
+                    node.data.type === 'directory'
+                ).length;
+                
+                // Contar rotas
+                const routesCount = data.bestpath.edges.length + data.direct.edges.filter(edge => 
+                    edge.data.is_direct
+                ).length;
+                
+                document.getElementById('active-devices').textContent = activeDevices;
+                document.getElementById('open-ports').textContent = openPorts;
+                document.getElementById('http-findings').textContent = httpFindings;
+                document.getElementById('routes-count').textContent = routesCount;
+            }
+            
+            // Mostrar informações do nó
+            function showNodeInfo(node) {
+                const infoPanel = document.getElementById('node-info');
+                const nodeTitle = document.getElementById('node-title');
+                const nodeDetails = document.getElementById('node-details');
+                
+                nodeTitle.textContent = node.data('label') || 'Nó';
+                
+                let detailsHTML = '';
+                const ignoreKeys = ['label', 'id', 'parent', 'position'];
+                
+                // Mapear chaves para nomes aceitáveis
+                const keyNames = {
+                    'type': 'Tipo',
+                    'ip': 'Endereço IP',
+                    'hostname': 'Hostname',
+                    'active': 'Ativo',
+                    'exists': 'Existe',
+                    'gateway': 'Gateway',
+                    'local': 'Local',
+                    'firewall': 'Firewall',
+                    'rtt_ms': 'Tempo de Resposta (ms)',
+                    'open_ports': 'Portas Abertas',
+                    'tcp_ports': 'Portas TCP',
+                    'udp_ports': 'Portas UDP',
+                    'web_findings': 'Descobertas Web',
+                    'cost': 'Custo',
+                    'status': 'Status HTTP',
+                    'port_number': 'Número da Porta',
+                    'protocol': 'Protocolo',
+                    'url': 'URL',
+                    'evasion': 'Técnica de Evasão',
+                    'ports': 'Portas',
+                    'findings': 'Descobertas',
+                    'fingerprint': 'Fingerprint'
+                };
+
+                const preferredOrder = [
+                    'type', 'ip', 'hostname', 'active', 'exists', 'local', 'gateway', 'firewall',
+                    'rtt_ms', 'open_ports', 'tcp_ports', 'udp_ports', 'web_findings', 'cost',
+                    'evasion', 'ports', 'findings', 'fingerprint'
+                ];
+
+                // Criar um Set para controlar quais chaves já foram processadas
+                const processedKeys = new Set();
+
+                // Primeiro: processar na ordem preferida
+                for (const key of preferredOrder) {
+                    if (node.data(key) !== undefined && !ignoreKeys.includes(key)) {
+                        const friendlyKey = keyNames[key] || key;
+                        let value = formatNodeValue(key, node.data(key));
+                        
+                        // Formatação especial para "Ativo"
+                        if (key === 'active') {
+                            value = value === 'Sim' ? 'Sim' : 'Não';
+                        }
+                        
+                        detailsHTML += `<p><strong>${friendlyKey}:</strong> ${value}</p>`;
+                        processedKeys.add(key);
+                    }
+                }
+
+                // Depois: processar as chaves restantes que não estão na ordem preferida
+                for (const key in node.data()) {
+                    if (!ignoreKeys.includes(key) && node.data(key) !== undefined && !processedKeys.has(key)) {
+                        const friendlyKey = keyNames[key] || key;
+                        let value = formatNodeValue(key, node.data(key));
+                        
+                        // Formatação especial para "Ativo"
+                        if (key === 'active') {
+                            value = value === 'Sim' ? 'Sim' : 'Não';
+                        }
+                        
+                        detailsHTML += `<p><strong>${friendlyKey}:</strong> ${value}</p>`;
+                    }
+                }
+                
+                if (detailsHTML === '') {
+                    detailsHTML = '<p>Nenhuma informação adicional disponível.</p>';
+                }
+                
+                nodeDetails.innerHTML = detailsHTML;
+                infoPanel.style.display = 'block';
+            }
+
+            function formatNodeValue(key, value) {
+                if (value === null || value === undefined) {
+                    return 'N/A';
+                }
+
+                // Formatação especial para portas
+                if (key === 'ports' && Array.isArray(value)) {
+                    if (value.length === 0) return 'Nenhuma porta aberta';
+                    return `<ul class="port-list">${value.map(port => {
+                        const state = translatePortState(port.state);
+                        const proto = port.proto ? port.proto.toUpperCase() : 'TCP';
+                        return `<li>Porta ${port.number}/${proto} - ${state}</li>`;
+                    }).join('')}</ul>`;
+                }
+                
+                // Formatação especial para descobertas web
+                if (key === 'findings' && Array.isArray(value)) {
+                    if (value.length === 0) return 'Nenhuma descoberta';
+                    
+                    // Agrupar descobertas por tipo para melhor organização
+                    const groupedFindings = {};
+                    value.forEach(finding => {
+                        if (!groupedFindings[finding.type]) {
+                            groupedFindings[finding.type] = [];
+                        }
+                        groupedFindings[finding.type].push(finding);
+                    });
+                    
+                    let findingsHTML = '';
+                    Object.keys(groupedFindings).forEach(type => {
+                        findingsHTML += `<div class="finding-group">
+                            <strong class="finding-type">${formatFindingType(type)}:</strong>
+                            <ul class="finding-list">${groupedFindings[type].map(finding => {
+                                const status = finding.status !== undefined ? finding.status : 'N/A';
+                                const length = finding.length !== undefined ? finding.length : 'N/A';
+                                const url = finding.url || 'URL não disponível';
+                                return `<li>${url} (Status: ${status}, Tamanho: ${length})</li>`;
+                            }).join('')}</ul>
+                        </div>`;
+                    });
+                    
+                    return findingsHTML;
+                }
+                
+                // Formatação especial para fingerprint - ocultar se não foi escaneado
+                if (key === 'fingerprint' && typeof value === 'object') {
+                    // Verificar se é um fingerprint válido ou apenas dados padrão
+                    if (isDefaultFingerprint(value)) {
+                        return 'Não escaneado.';
+                    }
+                    return `<pre class="fingerprint">${JSON.stringify(value, null, 2)}</pre>`;
+                }
+                
+                // Formatação especial para tipo
+                if (key === 'type') {
+                    return formatNodeType(value);
+                }
+                
+                if (Array.isArray(value)) {
+                    return value.length > 0 ? 
+                        `<ul>${value.map(item => `<li>${formatValue(item)}</li>`).join('')}</ul>` : 
+                        'Nenhum';
+                }
+                
+                if (typeof value === 'object') {
+                    return `<pre>${JSON.stringify(value, null, 2)}</pre>`;
+                }
+                
+                if (typeof value === 'boolean') {
+                    return value ? 'Sim' : 'Não';
+                }
+                
+                if (typeof value === 'number') {
+                    if (key === 'rtt_ms' || key === 'cost') {
+                        return value.toFixed(3);
+                    }
+                    return value.toString();
+                }
+                
+                return value.toString();
+            }
+
+            function formatValue(value) {
+                if (typeof value === 'boolean') {
+                    return value ? 'Sim' : 'Não';
+                }
+                if (value === null || value === undefined) {
+                    return 'N/A';
+                }
+                return value.toString();
+            }
+
+            // Funções auxiliares para melhorar a formatação
+            function translatePortState(state) {
+                const stateMap = {
+                    'open': 'Aberta',
+                    'closed': 'Fechada',
+                    'filtered': 'Filtrada',
+                    'open|filtered': 'Aberta/Filtrada',
+                    'closed|filtered': 'Fechada/Filtrada',
+                    'unknown': 'Desconhecida'
+                };
+                return stateMap[state] || state;
+            }
+
+            function formatFindingType(type) {
+                const typeMap = {
+                    'http-probe': 'Sonda WEB',
+                    'dir-discovery': 'Descoberta de Diretório',
+                    'file-discovery': 'Descoberta de Arquivo',
+                    'vhost-discovery': 'Descoberta de Virtual Host'
+                };
+                return typeMap[type] || type;
+            }
+
+            function formatNodeType(type) {
+                const typeMap = {
+                    'host': 'Host Ativo',
+                    'port': 'Porta',
+                    'group': 'Grupo',
+                    'host-inactive': 'Host Inativo',
+                    'network': 'Rede',
+                    'gateway': 'Gateway',
+                    'local': 'Local',
+                    'tcp': 'TCP',
+                    'udp': 'UDP',
+                    'directory': 'Diretório'
+                };
+                return typeMap[type] || type;
+            }
+
+            function isDefaultFingerprint(fingerprint) {
+                // Verificar se é um fingerprint padrão/vazio
+                return (fingerprint.banner_len === 0 && fingerprint.first_open_port === 0) ||
+                    Object.keys(fingerprint).length === 0 ||
+                    (Object.keys(fingerprint).length === 1 && fingerprint.hasOwnProperty('banner_len'));
+            }
+
+            function hideNodeInfo() {
+                document.getElementById('node-info').style.display = 'none';
+            }
+            
+            // Restaurar posições originais
+            function restoreOriginalPositions() {
+                if (originalPositions.size === 0) {
+                    // Se não houver posições salvas, apenas aplicar fit
+                    cy.fit(cy.elements(), 50);
+                    return;
+                }
+                
+                cy.nodes().forEach(node => {
+                    const originalPos = originalPositions.get(node.id());
+                    if (originalPos) {
+                        node.position({
+                            x: originalPos.x,
+                            y: originalPos.y
+                        });
+                    }
+                });
+                
+                cy.fit(cy.elements(), 50);
+            }
+            
+            // Event listeners para botões
+            document.getElementById('reset-btn').addEventListener('click', function() {
+                restoreOriginalPositions();
+                hideNodeInfo();
+            });
+            
+            document.getElementById('layout-btn').addEventListener('click', function() {
+                const layouts = {
+                    'overview': ['cose', 'grid', 'circle'],
+                    'bestpath': ['cose', 'grid', 'circle'],
+                    'direct': ['cose', 'grid', 'circle']
+                };
+                
+                const currentLayouts = layouts[currentView];
+                const currentIndex = currentLayouts.indexOf(currentLayout);
+                currentLayout = currentLayouts[(currentIndex + 1) % currentLayouts.length];
+                
+                cy.layout({
+                    name: currentLayout,
+                    fit: true,
+                    padding: 30,
+                    animate: true,
+                    randomize: true,
+                    animationDuration: 1000
+                }).run();
+            });
+            
+            document.getElementById('export-btn').addEventListener('click', function() {
+                // Usar a biblioteca FileSaver.js para melhor compatibilidade
+                try {
+                    const pngBlob = cy.png({
+                        output: 'blob',
+                        full: false,
+                        scale: 3,
+                        bg: '#1e1e1e',
+                        padding: 50
+                    });
+                    
+                    // Criar um URL temporário para o blob
+                    const url = URL.createObjectURL(pngBlob);
+                    
+                    // Criar um link de download
+                    const link = document.createElement('a');
+                    link.href = url;
+                    link.download = `netsentinel-${currentView}-${new Date().getTime()}.png`;
+                    
+                    // Simular clique para iniciar o download
+                    document.body.appendChild(link);
+                    link.click();
+                    
+                    // Limpar o URL após o download
+                    setTimeout(() => {
+                        document.body.removeChild(link);
+                        URL.revokeObjectURL(url);
+                    }, 100);
+                } catch (error) {
+                    console.error('Erro ao exportar imagem:', error);
+                    alert('Erro ao exportar imagem. Verifique o console para mais detalhes.');
+                }
+            });
+            
+            // Event listeners para botões de view
+            document.querySelectorAll('.view-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const view = this.getAttribute('data-view');
+                    applyView(view);
+                });
+            });
+        });
+    </script>
+</body>
+</html>
