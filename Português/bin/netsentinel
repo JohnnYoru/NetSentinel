@@ -1,0 +1,61 @@
+#!/usr/bin/env bash
+# bin/netsentinel
+
+set -euo pipefail
+IFS=$'\n\t'
+
+SOURCE="${BASH_SOURCE[0]}"
+while [ -L "$SOURCE" ]; do
+  DIR="$(cd -P "$(dirname "$SOURCE")" >/dev/null 2>&1 && pwd)"
+  SOURCE="$(readlink "$SOURCE")"
+  
+  [[ "$SOURCE" != /* ]] && SOURCE="$DIR/$SOURCE"
+done
+SCRIPT_DIR="$(cd -P "$(dirname "$SOURCE")" >/dev/null 2>&1 && pwd)"
+
+FUZZING=""
+
+if [ "${1:-}" = "-x" ]; then
+  FUZZING="-x"
+fi
+
+_on_exit() {
+  printf "\nRecebido sinal — encerrando processos filhos...\n" >&2
+  
+  pkill -P $$ 2>/dev/null || true
+}
+trap _on_exit INT TERM
+
+if ! command -v go >/dev/null 2>&1; then
+  echo "Erro: 'go' não encontrado no PATH. Instale o Go ou compile os binários primeiro." >&2
+  exit 3
+fi
+
+cd "$SCRIPT_DIR" || { echo "Falha ao entrar em $SCRIPT_DIR" >&2; exit 4; }
+
+run_step() {
+
+  "$@"
+}
+
+
+run_step go run netsentinel-s1.go
+sleep 1
+printf "\n"
+
+run_step go run netsentinel-s2.go
+sleep 1
+printf "\n"
+
+if [ -n "$FUZZING" ]; then
+  run_step go run netsentinel-s3.go "$FUZZING"
+else
+  run_step go run netsentinel-s3.go
+fi
+printf "\n"
+sleep 1
+
+run_step go run netsentinel-s4.go
+
+printf "Todas as etapas concluídas com sucesso.\n"
+exit 0
