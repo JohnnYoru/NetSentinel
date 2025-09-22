@@ -1,7 +1,7 @@
-# NeoSentinel
+# NetSentinel
 Network Recon &amp; Topology Mapping - Offensive
 
-**NeoSentinel** is a comprehensive network scanning and visualization tool designed to map, analyze, and display local network topology, open ports, and service findings. It combines fast Go-based scanning utilities with a modern, interactive web visualization powered by Cytoscape.js.
+**NetSentinel** is a comprehensive network scanning and visualization tool designed to map, analyze, and display local network topology, open ports, and service findings. It combines fast Go-based scanning utilities with a modern, interactive web visualization powered by Cytoscape.js.
 
 ---
 
@@ -18,10 +18,10 @@ Network Recon &amp; Topology Mapping - Offensive
 
 ## Project Structure
 
-- `neosentinel-s1.go`: Scans the subnet for active hosts.  
-- `neosentinel-s2.go`: Scans open ports and applies evasion.
-- `neosentinel-s3.go`: Calculates optimal and multi-hop routes between hosts using.
-- `neosentinel-s4.go`: Converts scan results to Cytoscape graph format.  
+- `netsentinel-s1.go`: Scans the subnet for active hosts.  
+- `netsentinel-s2.go`: Scans open ports and applies evasion.
+- `netsentinel-s3.go`: Calculates optimal and multi-hop routes between hosts using.
+- `netsentinel-s4.go`: Converts scan results to Cytoscape graph format.  
 - `cyto.html`: Interactive web visualization.  
 - `hosts.json`, `hosts_scanned.json`, `hosts-s3.json`: Scan and analysis outputs.  
 
