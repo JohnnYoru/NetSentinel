@@ -72,9 +72,9 @@ func main() {
 
 	parentDir := getParentDir()
 	jsonDir := filepath.Join(parentDir, "json")
-	inputPath := filepath.Join(jsonDir, "hosts-scanned.json") 
+	inputPath := filepath.Join(jsonDir, "hosts-s2.json") 
 
-	outFile = filepath.Join(jsonDir, "hosts-astar.json") 
+	outFile = filepath.Join(jsonDir, "hosts-s3.json") 
 	if ev := os.Getenv("NETSENTINEL_OUT"); ev != "" {
 		outFile = ev
 	}

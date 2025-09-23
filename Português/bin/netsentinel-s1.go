@@ -317,7 +317,7 @@ func main() {
 		return
 	}
 
-	jsonPath := filepath.Join(jsonDir, "hosts.json")
+	jsonPath := filepath.Join(jsonDir, "hosts-s1.json")
 	file, err := os.Create(jsonPath)
 	if err != nil {
 		fmt.Println("Erro ao criar arquivo JSON:", err)

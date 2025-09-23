@@ -146,7 +146,7 @@ func main() {
 	jsonDir := filepath.Join(parentDir, "json")
 	cytoDir := filepath.Join(parentDir, "cyto")
 
-	inputFile := filepath.Join(jsonDir, "hosts-astar.json")
+	inputFile := filepath.Join(jsonDir, "hosts-s3.json")
 
 	var outputFile string
 	outputFile = filepath.Join(cytoDir, "cyto-graph.json")

@@ -180,8 +180,8 @@ func processHost(host *Host, board *StatusBoard) {
 func main() {
 	parentDir := getParentDir()
 	jsonDir := filepath.Join(parentDir, "json")
-	inputFile := filepath.Join(jsonDir, "hosts.json")
-	outputFile := filepath.Join(jsonDir, "hosts-scanned.json")
+	inputFile := filepath.Join(jsonDir, "hosts-s1.json")
+	outputFile := filepath.Join(jsonDir, "hosts-s2.json")
 
 	if _, err := os.Stat(jsonDir); os.IsNotExist(err) {
 		if err := os.MkdirAll(jsonDir, 0755); err != nil {
