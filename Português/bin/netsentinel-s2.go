@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -12,6 +13,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 )
 
 type Port struct {
@@ -21,14 +23,14 @@ type Port struct {
 }
 
 type Host struct {
-	IP         string `json:"ip"`
-	Hostname   string `json:"hostname"`
-	Active     bool   `json:"active"`
-	IsLocal    bool   `json:"is_local"`
-	IsGateway  bool   `json:"is_gateway"`
-	Firewall   bool   `json:"firewall,omitempty"`
-	Ports      []Port `json:"ports,omitempty"`
-	Evasion    string `json:"evasion,omitempty"`
+	IP        string `json:"ip"`
+	Hostname  string `json:"hostname"`
+	Active    bool   `json:"active"`
+	IsLocal   bool   `json:"is_local"`
+	IsGateway bool   `json:"is_gateway"`
+	Firewall  bool   `json:"firewall,omitempty"`
+	Ports     []Port `json:"ports,omitempty"`
+	Evasion   string `json:"evasion,omitempty"`
 }
 
 type EvadeScan struct {
@@ -43,16 +45,20 @@ var evadeScans = []EvadeScan{
 	{Args: []string{"-sU", "-p", "53,67,88,123,137,138,139,143,161,162", "--data-length", "64"}},
 }
 
+const hostTimeout = 3 * time.Minute
+
 type StatusBoard struct {
 	mu         sync.Mutex
 	inProgress map[string]string
 	finished   map[string]string
+	timedOut   map[string]string
 }
 
 func NewStatusBoard() *StatusBoard {
 	return &StatusBoard{
 		inProgress: make(map[string]string),
 		finished:   make(map[string]string),
+		timedOut:   make(map[string]string),
 	}
 }
 
@@ -71,16 +77,29 @@ func (s *StatusBoard) Finish(host *Host) {
 	s.render()
 }
 
+func (s *StatusBoard) Timeout(host *Host) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	delete(s.inProgress, host.IP)
+	s.timedOut[host.IP] = host.Hostname
+	s.render()
+}
+
 func (s *StatusBoard) render() {
-	
 	fmt.Print("\033[H\033[2J")
 	fmt.Println("Hosts em progresso:")
-	for _, h := range s.inProgress {
-		fmt.Println(" -", h)
+	for ip, h := range s.inProgress {
+		fmt.Printf(" - %s (%s)\n", h, ip)
 	}
 	fmt.Println("\nHosts finalizados:")
-	for _, h := range s.finished {
-		fmt.Println(" -", h)
+	for ip, h := range s.finished {
+		fmt.Printf(" - %s (%s)\n", h, ip)
+	}
+	if len(s.timedOut) > 0 {
+		fmt.Println("\nHosts ignorados (timeout):")
+		for ip, h := range s.timedOut {
+			fmt.Printf(" - %s (%s)\n", h, ip)
+		}
 	}
 }
 
@@ -93,13 +112,12 @@ func getCurrentDir() string {
 }
 
 func getParentDir() string {
-	currentDir := getCurrentDir()
-	return filepath.Dir(currentDir)
+	return filepath.Dir(getCurrentDir())
 }
 
-func runNmap(ip string, args ...string) (string, error) {
+func runNmap(ctx context.Context, ip string, args ...string) (string, error) {
 	cmdArgs := append(args, ip)
-	cmd := exec.Command("nmap", cmdArgs...)
+	cmd := exec.CommandContext(ctx, "nmap", cmdArgs...)
 	var out bytes.Buffer
 	cmd.Stdout = &out
 	cmd.Stderr = &out
@@ -153,20 +171,39 @@ func processHost(host *Host, board *StatusBoard) {
 		return
 	}
 
+	ctx, cancel := context.WithTimeout(context.Background(), hostTimeout)
+	defer cancel()
+
 	board.Start(host)
 
-	outputTop, _ := runNmap(host.IP, "-Pn", "-T4", "--top-ports", "1000", "--open")
-	_, ports := parseNmapOutput(outputTop)
-	host.Ports = ports
+	outputTop, err := runNmap(ctx, host.IP, "-Pn", "-T4", "--top-ports", "1000", "--open")
+	if ctx.Err() != nil {
+		board.Timeout(host)
+		return
+	}
+	if err == nil {
+		_, ports := parseNmapOutput(outputTop)
+		host.Ports = ports
+	}
 
 	if len(host.Ports) == 0 {
 		for _, evade := range evadeScans {
-			outputEvade, _ := runNmap(host.IP, evade.Args...)
-			_, portsEvade := parseNmapOutput(outputEvade)
-			if len(portsEvade) > 0 {
-				host.Ports = portsEvade
-				host.Evasion = strings.Join(evade.Args, " ")
-				break
+			if ctx.Err() != nil {
+				board.Timeout(host)
+				return
+			}
+			outputEvade, err := runNmap(ctx, host.IP, evade.Args...)
+			if ctx.Err() != nil {
+				board.Timeout(host)
+				return
+			}
+			if err == nil {
+				_, portsEvade := parseNmapOutput(outputEvade)
+				if len(portsEvade) > 0 {
+					host.Ports = portsEvade
+					host.Evasion = strings.Join(evade.Args, " ")
+					break
+				}
 			}
 		}
 		if len(host.Ports) == 0 {
@@ -206,7 +243,7 @@ func main() {
 
 	board := NewStatusBoard()
 	var wg sync.WaitGroup
-	sem := make(chan struct{}, 5) 
+	sem := make(chan struct{}, 5)
 	activeCount := 0
 
 	for i := range hosts {
@@ -222,7 +259,7 @@ func main() {
 		}
 	}
 
-	fmt.Printf("Iniciando scans para %d hosts ativos...\n\n", activeCount)
+	fmt.Printf("Iniciando scans para %d hosts ativos (timeout: %s por host)...\n\n", activeCount, hostTimeout)
 	wg.Wait()
 
 	outJSON, _ := json.MarshalIndent(hosts, "", "  ")
@@ -234,16 +271,21 @@ func main() {
 
 	openPortsCount := 0
 	firewallCount := 0
+	timedOutCount := 0
 	for _, host := range hosts {
 		if host.Firewall {
 			firewallCount++
 		}
 		openPortsCount += len(host.Ports)
 	}
+	board.mu.Lock()
+	timedOutCount = len(board.timedOut)
+	board.mu.Unlock()
 
 	fmt.Printf("\nEstatísticas:\n")
 	fmt.Printf("- Total de hosts: %d\n", len(hosts))
 	fmt.Printf("- Hosts ativos: %d\n", activeCount)
 	fmt.Printf("- Hosts com firewall detectado: %d\n", firewallCount)
+	fmt.Printf("- Hosts ignorados por timeout: %d\n", timedOutCount)
 	fmt.Printf("- Total de portas abertas encontradas: %d\n", openPortsCount)
 }
